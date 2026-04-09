@@ -1,21 +1,30 @@
 const express = require("express");
 const router = express.Router();
-const { generateTerraform } = require("../services/llmService");
+const { generateTerraform, generateCloudFormation } = require("../services/llmService");
 
-// POST /generate — accepts structured JSON from /analyze
+// POST /generate
+// Body: { services, envVars, summary, format }
+// format: "terraform" (default) | "cloudformation"
 router.post("/", async (req, res) => {
   try {
-    const analysisResult = req.body;
+    const { format = "terraform", ...analysisResult } = req.body;
 
     if (!analysisResult || !analysisResult.services) {
-      return res.status(400).json({ error: "Invalid analysis payload. Expected { services: [...] }" });
+      return res.status(400).json({ error: "Invalid payload. Expected { services: [...] }" });
     }
 
-    const terraform = await generateTerraform(analysisResult);
-    res.json(terraform);
+    let result;
+    if (format === "cloudformation") {
+      result = await generateCloudFormation(analysisResult);
+    } else {
+      result = await generateTerraform(analysisResult);
+    }
+
+    res.json(result);
   } catch (err) {
-    console.error("Generate error:", err.message);
-    res.status(500).json({ error: err.message });
+    // Log full stack so you can see the real cause in the terminal
+    console.error("Generate error:", err.stack || err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
 

@@ -1,18 +1,20 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import InputPanel from "./components/InputPanel";
 import AnalysisResult from "./components/AnalysisResult";
-import TerraformOutput from "./components/TerraformOutput";
-import { analyzeRepo, generateTerraform } from "./api/client";
+import IaCOutput from "./components/IaCOutput";
+import { analyzeRepo, generateIaC } from "./api/client";
 import styles from "./App.module.css";
 
 export default function App() {
   const [step, setStep] = useState("input"); // input | analyzing | analyzed | generating | done | error
   const [analysis, setAnalysis] = useState(null);
-  const [terraform, setTerraform] = useState(null);
+  const [iac, setIaC] = useState(null);
+  const [format, setFormat] = useState("terraform"); // terraform | cloudformation
   const [error, setError] = useState("");
 
   async function handleAnalyze(payload) {
     setError("");
+    setFormat(payload.format || "terraform");
     setStep("analyzing");
     try {
       const result = await analyzeRepo(payload);
@@ -28,8 +30,8 @@ export default function App() {
     setError("");
     setStep("generating");
     try {
-      const result = await generateTerraform(analysis);
-      setTerraform(result);
+      const result = await generateIaC(analysis, format);
+      setIaC(result);
       setStep("done");
     } catch (e) {
       setError(e.message);
@@ -40,7 +42,7 @@ export default function App() {
   function handleReset() {
     setStep("input");
     setAnalysis(null);
-    setTerraform(null);
+    setIaC(null);
     setError("");
   }
 
@@ -51,7 +53,7 @@ export default function App() {
           <span className={styles.logoIcon}>☁️</span>
           <span>Code<span className={styles.accent}>-to-</span>Cloud</span>
         </div>
-        <p className={styles.tagline}>AI-powered Terraform generator from your codebase</p>
+        <p className={styles.tagline}>AI-powered IaC generator — scan your repo, get Terraform or CloudFormation instantly</p>
       </header>
 
       <main className={styles.main}>
@@ -62,14 +64,15 @@ export default function App() {
         {(step === "analyzed" || step === "generating") && analysis && (
           <AnalysisResult
             analysis={analysis}
+            format={format}
             onGenerate={handleGenerate}
             onReset={handleReset}
             loading={step === "generating"}
           />
         )}
 
-        {step === "done" && terraform && (
-          <TerraformOutput terraform={terraform} analysis={analysis} onReset={handleReset} />
+        {step === "done" && iac && (
+          <IaCOutput iac={iac} onReset={handleReset} />
         )}
 
         {step === "error" && (
@@ -77,8 +80,7 @@ export default function App() {
             <span>⚠️ {error}</span>
             <button className={styles.resetBtn} onClick={handleReset}>Try Again</button>
           </div>
-        )}
-      </main>
+        )}      </main>
     </div>
   );
 }

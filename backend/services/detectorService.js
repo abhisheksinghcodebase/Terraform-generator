@@ -1,140 +1,185 @@
-const fs = require("fs-extra");
 const path = require("path");
 const { walkDir, readFileSafe } = require("../utils/fileUtils");
 
+// ─────────────────────────────────────────────
+// PUBLIC ENTRY POINTS
+// ─────────────────────────────────────────────
+
 /**
- * Main detection entry point.
- * Walks the project directory and returns a structured analysis object.
+ * Detect services from a local directory (ZIP upload path)
  */
-async function detectServices(rootDir) {
+async function detectServicesFromFiles(rootDir, virtual = null) {
+  if (virtual) {
+    return detectFromVirtual(virtual);
+  }
+  return detectFromDisk(rootDir);
+}
+
+// ─────────────────────────────────────────────
+// DISK-BASED DETECTION (ZIP upload)
+// ─────────────────────────────────────────────
+
+async function detectFromDisk(rootDir) {
   const allFiles = await walkDir(rootDir);
   const relativeFiles = allFiles.map((f) => path.relative(rootDir, f));
 
-  const services = [];
-  const detectedPorts = new Set();
-  const envVars = [];
+  // Build virtual structure from disk
+  const fileContents = {};
+  const KEY_FILES = [
+    "package.json", "requirements.txt", "pyproject.toml",
+    "go.mod", "pom.xml", "build.gradle",
+  ];
 
-  // --- Language & framework detection per folder ---
-  const folderMap = buildFolderMap(relativeFiles);
-
-  for (const [folder, files] of Object.entries(folderMap)) {
-    const service = await detectServiceInFolder(rootDir, folder, files);
-    if (service) services.push(service);
-  }
-
-  // If no sub-folder services found, treat root as single service
-  if (services.length === 0) {
-    const rootService = await detectServiceInFolder(rootDir, ".", relativeFiles);
-    if (rootService) services.push(rootService);
-  }
-
-  // --- Port detection (scan all JS/PY files) ---
-  for (const file of allFiles) {
-    if (/\.(js|ts|py|env|yaml|yml)$/.test(file)) {
-      const content = await readFileSafe(file);
-      const ports = extractPorts(content);
-      ports.forEach((p) => detectedPorts.add(p));
-      const vars = extractEnvVars(content);
-      vars.forEach((v) => envVars.push(v));
+  for (const absPath of allFiles) {
+    const base = path.basename(absPath);
+    if (KEY_FILES.includes(base)) {
+      fileContents[path.relative(rootDir, absPath)] = await readFileSafe(absPath);
     }
   }
 
-  // Assign ports to services
-  const portList = [...detectedPorts];
-  services.forEach((svc, i) => {
-    if (!svc.port && portList[i]) svc.port = portList[i];
-  });
+  // Port + env var scan
+  const { ports, envVars } = await scanForPortsAndEnv(allFiles);
+
+  const services = await detectServicesFromTree(relativeFiles, fileContents);
+
+  if (services.length === 0) {
+    services.push({ type: "backend", language: "unknown", folder: "." });
+  }
+
+  assignPorts(services, ports);
 
   return {
     services,
-    detectedFiles: relativeFiles.slice(0, 50), // sample
+    detectedFiles: relativeFiles.slice(0, 50),
     envVars: [...new Set(envVars)],
     summary: buildSummary(services),
   };
 }
 
-/**
- * Group files by top-level folder (or root)
- */
+// ─────────────────────────────────────────────
+// VIRTUAL DETECTION (GitHub API path)
+// ─────────────────────────────────────────────
+
+async function detectFromVirtual({ tree, fileContents }) {
+  const services = await detectServicesFromTree(tree, fileContents);
+
+  if (services.length === 0) {
+    services.push({ type: "backend", language: "unknown", folder: "." });
+  }
+
+  // Extract env vars from fetched file contents
+  const envVars = [];
+  for (const content of Object.values(fileContents)) {
+    extractEnvVars(content).forEach((v) => envVars.push(v));
+  }
+
+  return {
+    services,
+    detectedFiles: tree.slice(0, 50),
+    envVars: [...new Set(envVars)],
+    summary: buildSummary(services),
+  };
+}
+
+// ─────────────────────────────────────────────
+// CORE DETECTION LOGIC
+// ─────────────────────────────────────────────
+
+async function detectServicesFromTree(filePaths, fileContents) {
+  const folderMap = buildFolderMap(filePaths);
+  const services = [];
+
+  for (const [folder, files] of Object.entries(folderMap)) {
+    const svc = detectServiceInFolder(folder, files, fileContents);
+    if (svc) services.push(svc);
+  }
+
+  // If nothing found in subfolders, try root
+  if (services.length === 0) {
+    const svc = detectServiceInFolder(".", filePaths, fileContents);
+    if (svc) services.push(svc);
+  }
+
+  return services;
+}
+
+function detectServiceInFolder(folder, files, fileContents) {
+  const fileNames = files.map((f) => path.basename(f).toLowerCase());
+
+  let language = null, framework = null, serviceType = null, database = null;
+
+  // ── Node.js ──
+  if (fileNames.includes("package.json")) {
+    language = "nodejs";
+    // Find the matching package.json content
+    const pkgContent = Object.entries(fileContents).find(([k]) =>
+      k === "package.json" || k.endsWith(`${folder}/package.json`) || k.endsWith(`${folder}\\package.json`)
+    )?.[1] || "";
+
+    const deps = extractDependencyKeys(pkgContent);
+
+    if (deps.includes("express"))        { framework = "express";  serviceType = "backend"; }
+    else if (deps.includes("fastify"))   { framework = "fastify";  serviceType = "backend"; }
+    else if (deps.includes("koa"))       { framework = "koa";      serviceType = "backend"; }
+    else if (deps.includes("@nestjs/core")) { framework = "nestjs"; serviceType = "backend"; }
+
+    if (deps.includes("next"))           { framework = "nextjs";   serviceType = "frontend"; }
+    else if (deps.includes("react") && !framework) { framework = "react"; serviceType = "frontend"; }
+    else if (deps.includes("vue"))       { framework = "vue";      serviceType = "frontend"; }
+
+    if (deps.includes("mongoose") || deps.includes("mongodb"))  database = "mongodb";
+    if (deps.includes("pg") || deps.includes("sequelize") || deps.includes("typeorm")) database = "postgresql";
+    if (deps.includes("mysql2") || deps.includes("mysql"))      database = "mysql";
+    if (deps.includes("redis") || deps.includes("ioredis"))     database = "redis";
+  }
+
+  // ── Python ──
+  if (fileNames.includes("requirements.txt") || fileNames.includes("pyproject.toml")) {
+    language = "python";
+    const reqContent = Object.entries(fileContents).find(([k]) =>
+      k === "requirements.txt" || k.endsWith("requirements.txt")
+    )?.[1] || "";
+
+    if (/\bflask\b/i.test(reqContent))   { framework = "flask";   serviceType = "backend"; }
+    if (/\bdjango\b/i.test(reqContent))  { framework = "django";  serviceType = "backend"; }
+    if (/\bfastapi\b/i.test(reqContent)) { framework = "fastapi"; serviceType = "backend"; }
+
+    if (/psycopg2|sqlalchemy/i.test(reqContent)) database = "postgresql";
+    if (/pymongo/i.test(reqContent))             database = "mongodb";
+    if (/mysql-connector|pymysql/i.test(reqContent)) database = "mysql";
+    if (/\bredis\b/i.test(reqContent))           database = "redis";
+  }
+
+  // ── Go ──
+  if (fileNames.includes("go.mod")) { language = "go"; serviceType = "backend"; }
+
+  // ── Java ──
+  if (fileNames.includes("pom.xml") || fileNames.includes("build.gradle")) {
+    language = "java"; serviceType = "backend";
+  }
+
+  if (!language) return null;
+  if (!serviceType) serviceType = "backend";
+
+  const svc = { type: serviceType, language, folder };
+  if (framework) svc.framework = framework;
+  if (database)  svc.database  = database;
+  return svc;
+}
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
 function buildFolderMap(files) {
   const map = {};
   for (const f of files) {
-    const parts = f.split(/[\\/]/);
+    const parts = f.replace(/\\/g, "/").split("/");
     const folder = parts.length > 1 ? parts[0] : ".";
     if (!map[folder]) map[folder] = [];
     map[folder].push(f);
   }
   return map;
-}
-
-/**
- * Detect a single service from a folder's file list
- */
-async function detectServiceInFolder(rootDir, folder, files) {
-  const fileNames = files.map((f) => path.basename(f).toLowerCase());
-  const filePaths = files.map((f) => f.toLowerCase());
-
-  let language = null;
-  let framework = null;
-  let serviceType = null;
-  let database = null;
-  let port = null;
-
-  // --- Language detection ---
-  if (fileNames.includes("package.json")) {
-    language = "nodejs";
-    const pkgPath = path.join(rootDir, folder === "." ? "package.json" : `${folder}/package.json`);
-    const pkg = await readFileSafe(pkgPath);
-    const deps = extractDependencyKeys(pkg);
-
-    // Framework
-    if (deps.includes("express") || deps.includes("fastify") || deps.includes("koa")) {
-      framework = deps.includes("express") ? "express" : deps.includes("fastify") ? "fastify" : "koa";
-      serviceType = "backend";
-    }
-    if (deps.includes("react") || deps.includes("next") || deps.includes("vite")) {
-      framework = deps.includes("next") ? "nextjs" : "react";
-      serviceType = "frontend";
-    }
-    if (deps.includes("@nestjs/core")) { framework = "nestjs"; serviceType = "backend"; }
-
-    // Database
-    if (deps.includes("mongoose") || deps.includes("mongodb")) database = "mongodb";
-    if (deps.includes("pg") || deps.includes("sequelize") || deps.includes("typeorm")) database = "postgresql";
-    if (deps.includes("mysql") || deps.includes("mysql2")) database = "mysql";
-    if (deps.includes("redis") || deps.includes("ioredis")) database = "redis";
-  }
-
-  if (fileNames.includes("requirements.txt") || fileNames.includes("pyproject.toml")) {
-    language = "python";
-    const reqPath = path.join(rootDir, folder === "." ? "requirements.txt" : `${folder}/requirements.txt`);
-    const req = await readFileSafe(reqPath);
-
-    if (/flask/i.test(req)) { framework = "flask"; serviceType = "backend"; }
-    if (/django/i.test(req)) { framework = "django"; serviceType = "backend"; }
-    if (/fastapi/i.test(req)) { framework = "fastapi"; serviceType = "backend"; }
-
-    if (/psycopg2|sqlalchemy/i.test(req)) database = "postgresql";
-    if (/pymongo/i.test(req)) database = "mongodb";
-    if (/mysql-connector|pymysql/i.test(req)) database = "mysql";
-    if (/redis/i.test(req)) database = "redis";
-  }
-
-  if (fileNames.includes("go.mod")) { language = "go"; serviceType = "backend"; }
-  if (fileNames.includes("pom.xml") || fileNames.includes("build.gradle")) { language = "java"; serviceType = "backend"; }
-
-  // Skip folders with no detectable language
-  if (!language) return null;
-
-  // Default service type
-  if (!serviceType) serviceType = "backend";
-
-  const service = { type: serviceType, language, folder };
-  if (framework) service.framework = framework;
-  if (database) service.database = database;
-  if (port) service.port = port;
-
-  return service;
 }
 
 function extractDependencyKeys(pkgJson) {
@@ -149,6 +194,19 @@ function extractDependencyKeys(pkgJson) {
   }
 }
 
+async function scanForPortsAndEnv(allFiles) {
+  const ports = new Set();
+  const envVars = [];
+  for (const file of allFiles) {
+    if (/\.(js|ts|py|env|yaml|yml)$/.test(file)) {
+      const content = await readFileSafe(file);
+      extractPorts(content).forEach((p) => ports.add(p));
+      extractEnvVars(content).forEach((v) => envVars.push(v));
+    }
+  }
+  return { ports: [...ports], envVars };
+}
+
 function extractPorts(content) {
   const matches = content.match(/(?:PORT|port|listen)\s*[=:]\s*(\d{2,5})/g) || [];
   return matches
@@ -157,8 +215,14 @@ function extractPorts(content) {
 }
 
 function extractEnvVars(content) {
-  const matches = content.match(/process\.env\.([A-Z_]+)|os\.environ\.get\(['"]([A-Z_]+)['"]\)/g) || [];
+  const matches = content.match(/process\.env\.([A-Z_][A-Z0-9_]+)|os\.environ\.get\(['"]([A-Z_][A-Z0-9_]+)['"]\)/g) || [];
   return matches.map((m) => m.replace(/process\.env\.|os\.environ\.get\(['"]|['"]\)/g, ""));
+}
+
+function assignPorts(services, ports) {
+  services.forEach((svc, i) => {
+    if (!svc.port && ports[i]) svc.port = ports[i];
+  });
 }
 
 function buildSummary(services) {
@@ -167,4 +231,4 @@ function buildSummary(services) {
   return `Detected: ${types || "unknown"}${dbs ? ` | Databases: ${dbs}` : ""}`;
 }
 
-module.exports = { detectServices };
+module.exports = { detectServicesFromFiles };

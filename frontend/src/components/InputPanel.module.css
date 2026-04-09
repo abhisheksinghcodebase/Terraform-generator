@@ -112,3 +112,67 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Problem statement banner */
+.problemBanner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #1a1f35;
+  border: 1px solid #2e3a6e;
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 28px;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  line-height: 1.6;
+}
+
+.problemIcon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Format toggle */
+.formatRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.formatLabel {
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.formatToggle {
+  display: flex;
+  gap: 6px;
+}
+
+.fmt, .fmtActive {
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.fmtActive {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.fmt:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}

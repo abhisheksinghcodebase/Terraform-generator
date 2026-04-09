@@ -39,8 +39,8 @@ router.post("/", upload.single("zipFile"), async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error("Analyze error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("Analyze error:", err.stack || err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
 

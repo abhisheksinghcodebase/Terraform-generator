@@ -1,4 +1,3 @@
-import React from "react";
 import styles from "./AnalysisResult.module.css";
 
 const SERVICE_ICONS = {
@@ -14,7 +13,7 @@ const DB_ICONS = {
   redis: "🔴",
 };
 
-export default function AnalysisResult({ analysis, onGenerate, onReset, loading }) {
+export default function AnalysisResult({ analysis, format, onGenerate, onReset, loading }) {
   const { services = [], summary, envVars = [] } = analysis;
 
   return (
@@ -59,7 +58,9 @@ export default function AnalysisResult({ analysis, onGenerate, onReset, loading 
       )}
 
       <button className={styles.generateBtn} onClick={onGenerate} disabled={loading}>
-        {loading ? "Generating Terraform..." : "Generate Terraform Code →"}
+        {loading
+          ? `Generating ${format === "cloudformation" ? "CloudFormation" : "Terraform"} — may take up to 60s...`
+          : `Generate ${format === "cloudformation" ? "☁️ CloudFormation" : "🏗 Terraform"} →`}
       </button>
     </div>
   );
