@@ -2,8 +2,6 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Primary model — gemini-2.0-flash
-// Fallback — gemini-2.0-flash-lite (lower quota usage, still capable)
 const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
 function getModel(name) {
@@ -20,17 +18,35 @@ function stripFences(raw) {
   return raw.replace(/^```(?:json|yaml|hcl)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
 
+// ─── Rate limiter ────────────────────────────────────────────
+// Enforces minimum 4s gap between calls (= max 15 req/min)
+let lastCallTime = 0;
+const MIN_GAP_MS = 4000;
+
+async function waitForRateLimit() {
+  const now = Date.now();
+  const elapsed = now - lastCallTime;
+  if (elapsed < MIN_GAP_MS) {
+    const wait = MIN_GAP_MS - elapsed;
+    console.log(`[Gemini] Rate limiter: waiting ${wait}ms before next call`);
+    await new Promise((r) => setTimeout(r, wait));
+  }
+  lastCallTime = Date.now();
+}
+// ─────────────────────────────────────────────────────────────
+
 /**
- * Call Gemini — tries primary model, falls back to lite on 429.
- * On persistent 429, waits up to 60s (the free-tier reset window).
+ * Call Gemini — sequential (no parallel calls), with 60s retry on 429.
+ * Tries primary model first, falls back to lite if still rate-limited.
  */
 async function callGemini(prompt) {
   for (const modelName of MODELS) {
     const model = getModel(modelName);
-    // Try each model up to 3 times with increasing wait
-    for (let attempt = 1; attempt <= 3; attempt++) {
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        console.log(`[Gemini] Using ${modelName}, attempt ${attempt}`);
+        await waitForRateLimit();           // enforce 4s gap
+        console.log(`[Gemini] ${modelName} attempt ${attempt}`);
         const result = await model.generateContent(prompt);
         const raw = result.response.text();
         const cleaned = stripFences(raw);
@@ -41,23 +57,21 @@ async function callGemini(prompt) {
         }
       } catch (err) {
         const is429 = err.message?.includes("429");
-        if (!is429) throw err; // non-rate-limit error — fail immediately
+        if (!is429) throw err;             // non-rate-limit — fail immediately
 
-        if (attempt < 3) {
-          // Wait longer each attempt: 15s → 30s → give up and try next model
-          const wait = attempt * 15000;
-          console.log(`[Gemini] Rate limited on ${modelName}. Waiting ${wait / 1000}s...`);
-          await new Promise((r) => setTimeout(r, wait));
+        if (attempt === 1) {
+          // First 429 — wait 60s (full free-tier reset window) then retry once
+          console.log(`[Gemini] 429 on ${modelName}. Waiting 60s for quota reset...`);
+          await new Promise((r) => setTimeout(r, 60000));
         } else {
-          console.log(`[Gemini] ${modelName} exhausted, trying next model...`);
+          console.log(`[Gemini] ${modelName} still limited, trying fallback model...`);
         }
       }
     }
   }
 
-  // All models exhausted
   throw new Error(
-    "Gemini rate limit exceeded on all models. The free tier allows 15 requests/min — please wait 60 seconds and try again."
+    "Gemini rate limit exceeded. Please wait a minute and try again."
   );
 }
 
