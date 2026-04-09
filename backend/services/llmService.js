@@ -105,11 +105,13 @@ Return JSON with EXACTLY these keys:
 }`;
 
   const parsed = await callGemini(prompt);
+  // Gemini sometimes double-escapes newlines inside JSON strings — fix them
+  const unescape = (s) => (typeof s === "string" ? s.replace(/\\n/g, "\n").replace(/\\t/g, "\t") : s);
   return {
     format: "terraform",
-    mainTf: parsed.main_tf || "",
-    variablesTf: parsed.variables_tf || "",
-    outputsTf: parsed.outputs_tf || "",
+    mainTf: unescape(parsed.main_tf || ""),
+    variablesTf: unescape(parsed.variables_tf || ""),
+    outputsTf: unescape(parsed.outputs_tf || ""),
     summary: parsed.summary || "",
     confidence: parsed.confidence || 0,
   };
@@ -144,9 +146,10 @@ Return JSON with EXACTLY these keys:
 }`;
 
   const parsed = await callGemini(prompt);
+  const unescape = (s) => (typeof s === "string" ? s.replace(/\\n/g, "\n").replace(/\\t/g, "\t") : s);
   return {
     format: "cloudformation",
-    templateYaml: parsed.template_yaml || "",
+    templateYaml: unescape(parsed.template_yaml || ""),
     summary: parsed.summary || "",
     confidence: parsed.confidence || 0,
   };
