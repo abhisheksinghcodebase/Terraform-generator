@@ -1,0 +1,33 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3250;
+  --accent: #6c63ff;
+  --accent-hover: #5a52e0;
+  --green: #22c55e;
+  --red: #ef4444;
+  --text: #e2e8f0;
+  --muted: #8892a4;
+  --radius: 10px;
+  --font: 'Inter', system-ui, sans-serif;
+  --mono: 'Fira Code', 'Cascadia Code', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+}
+
+button {
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+input, textarea {
+  font-family: var(--font);
+}

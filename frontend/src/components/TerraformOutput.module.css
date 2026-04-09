@@ -1,0 +1,160 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.summary {
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 600px;
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.confidence {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+}
+
+.confLabel {
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.confValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.resetBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.resetBtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.outputPanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.fileTabs {
+  display: flex;
+  gap: 4px;
+}
+
+.fileTab, .fileTabActive {
+  padding: 6px 14px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-family: var(--mono);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.15s;
+}
+
+.fileTabActive {
+  background: var(--accent);
+  color: white;
+}
+
+.fileTab:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actionBtn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 5px;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.actionBtn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.actionBtnPrimary {
+  padding: 6px 14px;
+  background: var(--accent);
+  border: none;
+  color: white;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.actionBtnPrimary:hover {
+  background: var(--accent-hover);
+}
+
+.codeBlock {
+  padding: 24px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: #c9d1d9;
+  white-space: pre;
+  max-height: 600px;
+  overflow-y: auto;
+  background: #0d1117;
+}

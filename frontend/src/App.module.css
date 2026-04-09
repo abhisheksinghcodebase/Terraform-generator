@@ -1,0 +1,67 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 24px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.logoIcon {
+  margin-right: 8px;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.main {
+  flex: 1;
+  padding: 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.errorBox {
+  background: #2d1515;
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #fca5a5;
+  gap: 16px;
+}
+
+.resetBtn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.resetBtn:hover {
+  background: var(--accent-hover);
+}
