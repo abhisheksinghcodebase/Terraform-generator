@@ -1,83 +1,112 @@
+const OpenAI = require("openai");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// ─── Clients ──────────────────────────────────────────────────
+// Groq uses the OpenAI-compatible SDK — just a different baseURL + model
+const groq = process.env.GROQ_API_KEY
+  ? new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" })
+  : null;
 
-const MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
-function getModel(name) {
-  return genAI.getGenerativeModel({
-    model: name,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-    },
-  });
-}
+const genAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
+
+// ─── Helper ───────────────────────────────────────────────────
+const unescape = (s) =>
+  typeof s === "string" ? s.replace(/\\n/g, "\n").replace(/\\t/g, "\t") : s;
 
 function stripFences(raw) {
   return raw.replace(/^```(?:json|yaml|hcl)?\s*/i, "").replace(/\s*```$/, "").trim();
 }
 
-// ─── Rate limiter ────────────────────────────────────────────
-// Enforces minimum 4s gap between calls (= max 15 req/min)
-let lastCallTime = 0;
-const MIN_GAP_MS = 4000;
-
-async function waitForRateLimit() {
-  const now = Date.now();
-  const elapsed = now - lastCallTime;
-  if (elapsed < MIN_GAP_MS) {
-    const wait = MIN_GAP_MS - elapsed;
-    console.log(`[Gemini] Rate limiter: waiting ${wait}ms before next call`);
-    await new Promise((r) => setTimeout(r, wait));
+// ─── Provider: Groq ──────────────────────────────────────────
+async function callGroq(prompt) {
+  console.log("[Groq] Calling llama-3.3-70b-versatile...");
+  const response = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [{ role: "user", content: prompt }],
+  });
+  const raw = response.choices[0].message.content;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("Groq returned invalid JSON. Raw: " + raw.slice(0, 300));
   }
-  lastCallTime = Date.now();
 }
-// ─────────────────────────────────────────────────────────────
 
-/**
- * Call Gemini — sequential (no parallel calls), with 60s retry on 429.
- * Tries primary model first, falls back to lite if still rate-limited.
- */
+// ─── Provider: OpenAI ────────────────────────────────────────
+async function callOpenAI(prompt) {
+  console.log("[OpenAI] Calling gpt-4o-mini...");
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+    messages: [{ role: "user", content: prompt }],
+  });
+  const raw = response.choices[0].message.content;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error("OpenAI returned invalid JSON. Raw: " + raw.slice(0, 300));
+  }
+}
+
+// ─── Provider: Gemini ────────────────────────────────────────
+let lastGeminiCall = 0;
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.0-flash-lite"];
+
 async function callGemini(prompt) {
-  for (const modelName of MODELS) {
-    const model = getModel(modelName);
-
+  for (const modelName of GEMINI_MODELS) {
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
+    });
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        await waitForRateLimit();           // enforce 4s gap
+        // enforce 4s gap between Gemini calls
+        const wait = 4000 - (Date.now() - lastGeminiCall);
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+        lastGeminiCall = Date.now();
+
         console.log(`[Gemini] ${modelName} attempt ${attempt}`);
         const result = await model.generateContent(prompt);
         const raw = result.response.text();
-        const cleaned = stripFences(raw);
-        try {
-          return JSON.parse(cleaned);
-        } catch {
-          throw new Error("Gemini returned invalid JSON. Raw: " + raw.slice(0, 300));
-        }
+        return JSON.parse(stripFences(raw));
       } catch (err) {
-        const is429 = err.message?.includes("429");
-        if (!is429) throw err;             // non-rate-limit — fail immediately
-
+        if (!err.message?.includes("429")) throw err;
         if (attempt === 1) {
-          // First 429 — wait 60s (full free-tier reset window) then retry once
-          console.log(`[Gemini] 429 on ${modelName}. Waiting 60s for quota reset...`);
+          console.log(`[Gemini] 429 — waiting 60s for quota reset...`);
           await new Promise((r) => setTimeout(r, 60000));
-        } else {
-          console.log(`[Gemini] ${modelName} still limited, trying fallback model...`);
         }
       }
     }
   }
-
-  throw new Error(
-    "Gemini rate limit exceeded. Please wait a minute and try again."
-  );
+  throw new Error("Gemini rate limit exceeded on all models.");
 }
 
-/**
- * Generate Terraform (main.tf / variables.tf / outputs.tf)
- */
+// ─── Dispatcher: Groq → OpenAI → Gemini ──────────────────────
+async function callLLM(prompt) {
+  if (groq) {
+    try { return await callGroq(prompt); }
+    catch (err) { console.warn(`[LLM] Groq failed (${err.message}), trying OpenAI...`); }
+  }
+  if (openai) {
+    try { return await callOpenAI(prompt); }
+    catch (err) { console.warn(`[LLM] OpenAI failed (${err.message}), trying Gemini...`); }
+  }
+  if (genAI) {
+    return callGemini(prompt);
+  }
+  throw new Error("No LLM provider configured. Set GROQ_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY in .env");
+}
+
+// ─── Generate Terraform ───────────────────────────────────────
 async function generateTerraform(analysisResult) {
   const prompt = `You are a senior DevOps engineer and Terraform expert.
 Generate production-ready, modular Terraform code for AWS based on this project analysis.
@@ -104,9 +133,7 @@ Return JSON with EXACTLY these keys:
   "confidence": <integer 0-100>
 }`;
 
-  const parsed = await callGemini(prompt);
-  // Gemini sometimes double-escapes newlines inside JSON strings — fix them
-  const unescape = (s) => (typeof s === "string" ? s.replace(/\\n/g, "\n").replace(/\\t/g, "\t") : s);
+  const parsed = await callLLM(prompt);
   return {
     format: "terraform",
     mainTf: unescape(parsed.main_tf || ""),
@@ -117,9 +144,7 @@ Return JSON with EXACTLY these keys:
   };
 }
 
-/**
- * Generate CloudFormation (template.yaml)
- */
+// ─── Generate CloudFormation ──────────────────────────────────
 async function generateCloudFormation(analysisResult) {
   const prompt = `You are a senior DevOps engineer and AWS CloudFormation expert.
 Generate a production-ready CloudFormation YAML template based on this project analysis.
@@ -145,8 +170,7 @@ Return JSON with EXACTLY these keys:
   "confidence": <integer 0-100>
 }`;
 
-  const parsed = await callGemini(prompt);
-  const unescape = (s) => (typeof s === "string" ? s.replace(/\\n/g, "\n").replace(/\\t/g, "\t") : s);
+  const parsed = await callLLM(prompt);
   return {
     format: "cloudformation",
     templateYaml: unescape(parsed.template_yaml || ""),

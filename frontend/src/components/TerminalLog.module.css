@@ -1,0 +1,89 @@
+.terminal {
+  width: 100%;
+  max-width: 780px;
+  margin: 24px auto 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0d1117;
+  border: 1px solid #2a2f3a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+/* ── Title bar ── */
+.titleBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #161b22;
+  border-bottom: 1px solid #2a2f3a;
+}
+
+.titleText {
+  font-size: 12px;
+  color: #8b949e;
+  letter-spacing: 0.04em;
+}
+
+.dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dotRed    { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.dotYellow { width: 12px; height: 12px; border-radius: 50%; background: #febc2e; }
+.dotGreen  { width: 12px; height: 12px; border-radius: 50%; background: #28c840; }
+
+/* ── Body ── */
+.body {
+  padding: 16px 18px;
+  min-height: 120px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2f3a transparent;
+}
+
+.body::-webkit-scrollbar       { width: 4px; }
+.body::-webkit-scrollbar-thumb { background: #2a2f3a; border-radius: 4px; }
+
+/* ── Lines ── */
+.line {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+.prompt {
+  color: #3fb950;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.text {
+  color: #c9d1d9;
+}
+
+/* ── Type colours ── */
+.system  { color: #3fb950; }   /* green  — [SYSTEM]  */
+.network { color: #58a6ff; }   /* blue   — [NETWORK] */
+.success { color: #3fb950; }   /* green  — [SUCCESS] */
+.warn    { color: #d29922; }   /* yellow — [WARN]    */
+.error   { color: #f85149; }   /* red    — [ERROR]   */
+.info    { color: #8b949e; }   /* grey   — [INFO]    */
+.llm     { color: #bc8cff; }   /* purple — [LLM]     */
+
+/* ── Blinking cursor ── */
+.cursor {
+  color: #3fb950;
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
