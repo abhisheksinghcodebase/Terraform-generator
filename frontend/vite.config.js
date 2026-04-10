@@ -8,7 +8,9 @@ export default defineConfig({
     proxy: {
       "/analyze": "http://localhost:5000",
       "/generate": "http://localhost:5000",
-      "/health": "http://localhost:5000",
+      "/readme":   "http://localhost:5000",
+      "/health":   "http://localhost:5000",
+      "/debug":    "http://localhost:5000",
     },
   },
 });

@@ -2,46 +2,175 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
 }
 
+/* ── Header ── */
 .header {
-  padding: 24px 40px;
+  height: var(--header-h);
+  padding: 0 32px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   display: flex;
   align-items: center;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
+
+.headerLeft { display: flex; align-items: center; gap: 20px; }
 
 .logo {
-  font-size: 1.5rem;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 800;
   letter-spacing: -0.5px;
+  text-decoration: none;
+  color: var(--text);
 }
 
-.logoIcon {
-  margin-right: 8px;
+.logoMark {
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  box-shadow: 0 0 16px var(--accent-glow);
 }
 
-.accent {
-  color: var(--accent);
+.logoText { display: flex; align-items: center; gap: 2px; }
+.accent { color: var(--accent2); }
+
+.badge {
+  padding: 3px 10px;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  border-radius: 99px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .tagline {
   color: var(--muted);
-  font-size: 0.875rem;
+  font-size: 0.82rem;
+  display: none;
 }
 
+@media (min-width: 768px) { .tagline { display: block; } }
+
+.headerRight { display: flex; align-items: center; gap: 10px; }
+
+/* ── Theme toggle ── */
+.themeBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all var(--transition);
+}
+.themeBtn:hover { border-color: var(--accent); color: var(--accent2); background: var(--surface3); }
+
+/* ── Step indicator ── */
+.stepBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 20px 32px 0;
+}
+
+.stepItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted2);
+  transition: color var(--transition);
+}
+
+.stepItem.active { color: var(--accent2); }
+.stepItem.done   { color: var(--green); }
+
+.stepDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.stepItem.active .stepDot {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--accent2);
+  animation: pulse-ring 2s infinite;
+}
+
+.stepItem.done .stepDot {
+  border-color: var(--green);
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.stepLine {
+  width: 48px;
+  height: 2px;
+  background: var(--border);
+  margin: 0 4px;
+  border-radius: 99px;
+  transition: background var(--transition);
+}
+
+.stepLine.done { background: var(--green); }
+
+@media (max-width: 480px) {
+  .stepLabel { display: none; }
+  .stepLine  { width: 24px; }
+}
+
+/* ── Main ── */
 .main {
   flex: 1;
-  padding: 40px;
-  max-width: 1100px;
+  padding: 32px 24px 64px;
+  max-width: 1120px;
   margin: 0 auto;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
+@media (min-width: 768px) { .main { padding: 40px 40px 80px; } }
+
+/* ── Error box ── */
 .errorBox {
-  background: #2d1515;
+  background: var(--red-dim);
   border: 1px solid var(--red);
   border-radius: var(--radius);
   padding: 20px 24px;
@@ -50,18 +179,18 @@
   justify-content: space-between;
   color: #fca5a5;
   gap: 16px;
+  animation: fadeUp 0.3s ease;
 }
 
 .resetBtn {
   background: var(--accent);
   color: white;
   border: none;
-  padding: 8px 18px;
-  border-radius: 6px;
+  padding: 9px 20px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
+  font-weight: 600;
   white-space: nowrap;
+  transition: background var(--transition);
 }
-
-.resetBtn:hover {
-  background: var(--accent-hover);
-}
+.resetBtn:hover { background: var(--accent-hover); }

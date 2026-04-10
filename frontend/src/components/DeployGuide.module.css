@@ -1,0 +1,219 @@
+.guide {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+  border-bottom: 1px solid #2e3a6e;
+  flex-wrap: wrap;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.rocketIcon { font-size: 2rem; line-height: 1; }
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.docsLink {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid #3b4a7a;
+  color: #a5b4fc;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.docsLink:hover { background: #1e2a5a; border-color: #6366f1; color: #c7d2fe; }
+
+/* ── Body ── */
+.body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Section ── */
+.section { display: flex; flex-direction: column; gap: 10px; }
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.sectionNum {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Prerequisites chips ── */
+.prereqList { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.prereqChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  background: #1a1f35;
+  border: 1px solid #2e3a6e;
+  border-radius: 20px;
+  color: #a5b4fc;
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.prereqChip:hover { background: #1e2a5a; border-color: #6366f1; color: #c7d2fe; }
+
+/* ── Command rows ── */
+.cmdList { display: flex; flex-direction: column; gap: 8px; }
+
+.cmdRow { display: flex; flex-direction: column; gap: 3px; }
+
+.cmdBlock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #0d1117;
+  border: 1px solid #2a2f3a;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  position: relative;
+}
+
+.destroyBlock {
+  border-color: #4a1a1a;
+  background: #110808;
+}
+
+.stepIdx {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: #1e2a3a;
+  color: #58a6ff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.prompt {
+  color: #3fb950;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.cmd {
+  color: #c9d1d9;
+  font-size: 0.82rem;
+  flex: 1;
+  word-break: break-all;
+}
+
+.cmdNote {
+  font-size: 0.76rem;
+  color: #6b7280;
+  font-family: var(--mono);
+  padding-left: 14px;
+}
+
+/* ── Copy button ── */
+.copyBtn {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid #2a2f3a;
+  color: #6b7280;
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.copyBtn:hover { border-color: #3fb950; color: #3fb950; }
+
+/* ── Tips ── */
+.tipsSection {
+  background: #0f1a0f;
+  border: 1px solid #1a3a1a;
+  border-left: 3px solid #3fb950;
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.tipsSectionTitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #86efac;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tipsList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0;
+  margin: 0;
+}
+
+.tip {
+  font-size: 0.84rem;
+  color: #6ee7b7;
+  line-height: 1.5;
+  padding-left: 16px;
+  position: relative;
+}
+.tip::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #3fb950;
+}

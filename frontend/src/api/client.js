@@ -43,10 +43,24 @@ export async function analyzeRepo(payload) {
  * @param {object} analysis - result from /analyze
  * @param {"terraform"|"cloudformation"} format
  */
-export async function generateIaC(analysis, format = "terraform") {
+export async function generateIaC(analysis, format = "terraform", cloud = "aws") {
   try {
-    const { data } = await axios.post(`${BASE}/generate`, { ...analysis, format }, {
-      timeout: 180_000, // 3 min — covers 2 model fallbacks × 3 retries × 15s wait
+    const { data } = await axios.post(`${BASE}/generate`, { ...analysis, format, cloud }, {
+      timeout: 180_000,
+    });
+    return data;
+  } catch (err) {
+    throw new Error(extractError(err));
+  }
+}
+
+/**
+ * Generate a deployment README from the IaC result + analysis.
+ */
+export async function generateReadme(iacResult, analysisResult) {
+  try {
+    const { data } = await axios.post(`${BASE}/readme`, { iacResult, analysisResult }, {
+      timeout: 120_000,
     });
     return data;
   } catch (err) {

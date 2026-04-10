@@ -23,7 +23,6 @@ async function detectFromDisk(rootDir) {
   const allFiles = await walkDir(rootDir);
   const relativeFiles = allFiles.map((f) => path.relative(rootDir, f));
 
-  // Build virtual structure from disk
   const fileContents = {};
   const KEY_FILES = [
     "package.json", "requirements.txt", "pyproject.toml",
@@ -37,9 +36,7 @@ async function detectFromDisk(rootDir) {
     }
   }
 
-  // Port + env var scan
   const { ports, envVars } = await scanForPortsAndEnv(allFiles);
-
   const services = await detectServicesFromTree(relativeFiles, fileContents);
 
   if (services.length === 0) {
@@ -48,11 +45,18 @@ async function detectFromDisk(rootDir) {
 
   assignPorts(services, ports);
 
+  // Docker detection
+  const hasDocker = relativeFiles.some((f) => {
+    const base = path.basename(f).toLowerCase();
+    return base === "dockerfile" || base === "docker-compose.yml" || base === "docker-compose.yaml";
+  });
+
   return {
     services,
+    hasDocker,
     detectedFiles: relativeFiles.slice(0, 50),
     envVars: [...new Set(envVars)],
-    summary: buildSummary(services),
+    summary: buildSummary(services, hasDocker),
   };
 }
 
@@ -67,17 +71,23 @@ async function detectFromVirtual({ tree, fileContents }) {
     services.push({ type: "backend", language: "unknown", folder: "." });
   }
 
-  // Extract env vars from fetched file contents
   const envVars = [];
   for (const content of Object.values(fileContents)) {
     extractEnvVars(content).forEach((v) => envVars.push(v));
   }
 
+  // Docker detection from file tree
+  const hasDocker = tree.some((f) => {
+    const base = path.basename(f).toLowerCase();
+    return base === "dockerfile" || base === "docker-compose.yml" || base === "docker-compose.yaml";
+  });
+
   return {
     services,
+    hasDocker,
     detectedFiles: tree.slice(0, 50),
     envVars: [...new Set(envVars)],
-    summary: buildSummary(services),
+    summary: buildSummary(services, hasDocker),
   };
 }
 
@@ -225,10 +235,11 @@ function assignPorts(services, ports) {
   });
 }
 
-function buildSummary(services) {
+function buildSummary(services, hasDocker = false) {
   const types = services.map((s) => s.framework || s.language || s.type).join(", ");
   const dbs = services.filter((s) => s.database).map((s) => s.database).join(", ");
-  return `Detected: ${types || "unknown"}${dbs ? ` | Databases: ${dbs}` : ""}`;
+  const docker = hasDocker ? " | 🐳 Docker detected" : "";
+  return `Detected: ${types || "unknown"}${dbs ? ` | Databases: ${dbs}` : ""}${docker}`;
 }
 
 module.exports = { detectServicesFromFiles };
